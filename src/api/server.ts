@@ -1,9 +1,9 @@
 import { Todo } from "../domain/Todo";
 
-const serverTodos = [
-  { id: "1", content: "Buy milk" },
-  { id: "2", content: "Buy eggs" },
-  { id: "3", content: "Buy bread" },
+const serverTodos: Todo[] = [
+  { content: "Buy milk" },
+  { content: "Buy eggs" },
+  { content: "Buy bread" },
 ];
 
 export function fetchTodos(): Promise<Todo[]> {
