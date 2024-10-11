@@ -1,9 +1,13 @@
 import { useSearchParams } from "react-router-dom";
 import "./App.css";
 import { TodoList } from "./TodoList";
-import { ChangeEvent, Reducer, useEffect, useReducer } from "react";
+import { ChangeEvent, Reducer, useEffect, useReducer, useRef } from "react";
 import { Todo } from "./domain/Todo";
-import { fetchTodos } from "./api/server";
+import { createTodo, fetchTodos } from "./api/server";
+import {
+  CancelablePromise,
+  makeCancellablePromise,
+} from "./cancellable-promise";
 
 export type TodoListState = {
   todos: Todo[];
@@ -21,16 +25,27 @@ type TodoListAction =
       search: string;
     }
   | {
-      type: "INITIALIZE_TODOS";
+      type: "SET_TODOS";
       todos: Todo[];
     };
 
 function reducerFactory(
+  createTodo: (todo: Todo) => Promise<void>,
   updateSearchParam: (search: string) => void
 ): Reducer<TodoListState, TodoListAction> {
   return (state, action) => {
     switch (action.type) {
       case "CREATE_TODO":
+        console.log("TT");
+        if (
+          state.todos.find(
+            (todo) => todo.content === action.todoToCreate.content
+          )
+        ) {
+          return state;
+        }
+
+        createTodo(action.todoToCreate);
         return {
           ...state,
           todos: [...state.todos, action.todoToCreate],
@@ -42,7 +57,7 @@ function reducerFactory(
           search: action.search,
         };
 
-      case "INITIALIZE_TODOS":
+      case "SET_TODOS":
         return {
           ...state,
           todos: action.todos,
@@ -56,9 +71,17 @@ function reducerFactory(
 
 function App() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const pendingRequest = useRef<CancelablePromise>();
+
+  const syncTodos = () => {
+    pendingRequest.current?.cancel();
+    const cancellablePromise = makeCancellablePromise(fetchTodos());
+    pendingRequest.current = cancellablePromise;
+    return cancellablePromise.promise;
+  };
 
   const [state, dispatch] = useReducer(
-    reducerFactory((search) => setSearchParams({ query: search })),
+    reducerFactory(createTodo, (search) => setSearchParams({ query: search })),
     {
       todos: [],
       search: searchParams.get("query") ?? "",
@@ -68,7 +91,7 @@ function App() {
 
   useEffect(() => {
     fetchTodos().then((todos) => {
-      dispatch({ type: "INITIALIZE_TODOS", todos });
+      dispatch({ type: "SET_TODOS", todos });
     });
   }, []);
 
@@ -89,6 +112,13 @@ function App() {
           todos={state.todos.filter((todo) =>
             todo.content.includes(state.search)
           )}
+          onTodoCreated={(todo) => {
+            console.log("AA");
+            dispatch({ type: "CREATE_TODO", todoToCreate: todo });
+            /*  syncTodos().then((todos) => {
+              dispatch({ type: "SET_TODOS", todos });
+            }); */
+          }}
         />
       </div>
     </div>

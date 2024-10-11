@@ -1,15 +1,21 @@
 import { Todo } from "../domain/Todo";
 
-const serverTodos: Todo[] = [
-  { content: "Buy milk" },
-  { content: "Buy eggs" },
-  { content: "Buy bread" },
-];
+function readTodosFromLocalStorage(): Todo[] {
+  const todos = localStorage.getItem("todos");
+  if (todos) {
+    return JSON.parse(todos);
+  }
+  return [];
+}
+
+function writeTodosToLocalStorage(todos: Todo[]): void {
+  localStorage.setItem("todos", JSON.stringify(todos));
+}
 
 export function fetchTodos(): Promise<Todo[]> {
   return new Promise((resolve) => {
     setTimeout(() => {
-      resolve([...serverTodos]);
+      resolve([...readTodosFromLocalStorage()]);
     }, 2000);
   });
 }
@@ -17,7 +23,9 @@ export function fetchTodos(): Promise<Todo[]> {
 export function createTodo(todo: Todo): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(() => {
-      serverTodos.push(todo);
+      console.log("CC");
+      const todos = readTodosFromLocalStorage();
+      writeTodosToLocalStorage([...todos, todo]);
       resolve();
     }, 1000);
   });
